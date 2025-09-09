@@ -7,22 +7,44 @@ from pyrogram import filters
 from pyrogram.errors import UserNotParticipant
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from config import LOG_GROUP, OWNER_ID, FORCE_SUB
+import os
+
+try:
+    FORCE_SUB = int(os.environ.get("FORCE_SUB"))
+except Exception as e:
+    print(f"FORCE_SUB env var missing or invalid: {e}")
+    FORCE_SUB = None
 
 async def subscribe(app, message):
-    if FORCE_SUB:
-        try:
-          user = await app.get_chat_member(FORCE_SUB, message.from_user.id)
-          if str(user.status) == "ChatMemberStatus.BANNED":
-              await message.reply_text("You are Banned. Contact -- Team SPY")
-              return 1
-        except UserNotParticipant:
-            link = await app.export_chat_invite_link(FORCE_SUB)
-            caption = f"Join our channel to use the bot"
-            await message.reply_photo(photo="https://graph.org/file/d44f024a08ded19452152.jpg",caption=caption, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Now...", url=f"{link}")]]))
+    if not FORCE_SUB:
+        return 0  # Skip force-sub if not set
+
+    try:
+        user = await app.get_chat_member(FORCE_SUB, message.from_user.id)
+        if str(user.status) == "ChatMemberStatus.BANNED":
+            await message.reply_text("You are Banned. Contact -- Team SPY")
             return 1
-        except Exception as ggn:
-            await message.reply_text(f"Something Went Wrong. Contact admins... with following message {ggn}")
-            return 1 
+    except UserNotParticipant:
+        try:
+            link = await app.export_chat_invite_link(FORCE_SUB)
+        except Exception as e:
+            await message.reply_text(f"Bot is not admin in FORCE_SUB channel. Error: {e}")
+            return 1
+
+        caption = "Join our channel to use the bot"
+        await message.reply_photo(
+            photo="https://graph.org/file/d44f024a08ded19452152.jpg",
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("Join Now...", url=f"{link}")]]
+            )
+        )
+        return 1
+    except Exception as ggn:
+        await message.reply_text(f"Something Went Wrong. Contact admins... with message: {ggn}")
+        return 1
+
+    return 0
      
 @app.on_message(filters.command("set"))
 async def set(_, message):
@@ -233,3 +255,4 @@ async def see_terms(client, callback_query):
     await callback_query.message.edit_text(terms_text, reply_markup=buttons)
  
  
+
