@@ -469,27 +469,42 @@ async def text_handler(c, m):
             Z.pop(uid, None)
             return
             
-        if is_user_active(uid):
-            await pt.edit('Active task exists. Use /stop first.')
-            Z.pop(uid, None)
-            return
+        elif s == 'count':
+    if not m.text.isdigit():
+        await m.reply_text('Enter valid number.')
+        return
+
+    count = int(m.text.strip())
+    await pt.edit("⏳ Processing batch...")
+
+    success = 0
+    for idx in range(1, count + 1):
+        if should_cancel(uid):
+            await m.reply_text(f"🚫 Batch cancelled from {idx}th file.")
+            break
 
         try:
-            msg = await get_msg(ubot, uc, i, s, lt)
+            msg = await get_msg(ubot, uc, i, s + idx - 1, lt)
             if msg:
                 res = await process_msg(ubot, uc, msg, str(m.chat.id), lt, uid, i)
-                await pt.edit(f'1/1: {res}')
+                if res == 'Done.':
+                    success += 1
+                    await m.reply_text(f"{idx}th file uploaded ✅")
+                elif res == 'Cancelled.':
+                    await m.reply_text(f"🚫 Batch cancelled from {idx}th file.")
+                    break
+                else:
+                    await m.reply_text(f"{idx}th file error: {res}")
             else:
-                await pt.edit('Message not found')
+                await m.reply_text(f"{idx}th file is missing, skipped ❌")
         except Exception as e:
-            await pt.edit(f'Error: {str(e)[:50]}')
-        finally:
-            Z.pop(uid, None)
+            await m.reply_text(f"{idx}th file crashed: {str(e)[:50]}")
+            await m.reply_text(f"🚫 Batch stopped from {idx}th file.")
+            break
 
-    elif s == 'count':
-        if not m.text.isdigit():
-            await m.reply_text('Enter valid number.')
-            return
+    await remove_active_batch(uid)
+    await m.reply_text(f"✅ Batch completed. {success}/{count} files uploaded.")
+    Z.pop(uid, None)
         
         count = int(m.text)
         maxlimit = PREMIUM_LIMIT if await is_premium_user(uid) else FREEMIUM_LIMIT
@@ -555,6 +570,7 @@ async def text_handler(c, m):
         finally:
             await remove_active_batch(uid)
             Z.pop(uid, None)
+
 
 
 
