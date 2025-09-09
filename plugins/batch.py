@@ -503,7 +503,12 @@ async def text_handler(c, m):
             break
 
     await remove_active_batch(uid)
-    await m.reply_text(f"✅ Batch completed. {success}/{count} files uploaded.")
+
+    if not should_cancel(uid):
+        await m.reply_text("✅ Batch completed successfully.")
+    else:
+        await m.reply_text("⚠️ Batch ended with cancellation or error.")
+
     Z.pop(uid, None)
         
         count = int(m.text)
@@ -570,6 +575,7 @@ async def text_handler(c, m):
         finally:
             await remove_active_batch(uid)
             Z.pop(uid, None)
+
 
 
 
