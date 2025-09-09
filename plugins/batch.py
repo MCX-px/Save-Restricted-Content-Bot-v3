@@ -611,6 +611,56 @@ Z.pop(uid, None)
         await handle_queued_batch(next_job)
 
     Z.pop(uid, None)
+            async def handle_queued_batch(data):
+    uid = data["m"].from_user.id
+    ACTIVE_BATCH_USERS.add(uid)
+
+    try:
+        count = int(data["s"])
+        await data["pt"].edit("⏳ Processing queued batch...")
+
+        success = 0
+        for idx in range(1, count + 1):
+            if should_cancel(uid):
+                await data["m"].reply_text(f"🚫 Batch cancelled from {idx}th file.")
+                break
+
+            try:
+                msg = await get_msg(data["ubot"], data["uc"], data["i"], data["s"] + idx - 1, data["lt"])
+                if msg:
+                    res = await process_msg(data["ubot"], data["uc"], msg, str(data["m"].chat.id), data["lt"], uid, data["i"])
+                    if res == 'Done.':
+                        success += 1
+                        await data["m"].reply_text(f"{idx}th file uploaded ✅")
+                    elif res == 'Cancelled.':
+                        await data["m"].reply_text(f"🚫 Batch cancelled from {idx}th file.")
+                        break
+                    else:
+                        await data["m"].reply_text(f"{idx}th file error: {res}")
+                else:
+                    await data["m"].reply_text(f"{idx}th file is missing, skipped ❌")
+            except Exception as e:
+                await data["m"].reply_text(f"{idx}th file crashed: {str(e)[:50]}")
+                await data["m"].reply_text(f"🚫 Batch stopped from {idx}th file.")
+                break
+
+        await remove_active_batch(uid)
+
+        if not should_cancel(uid):
+            await data["m"].reply_text("✅ Queued batch completed successfully.")
+        else:
+            await data["m"].reply_text("⚠️ Queued batch ended with cancellation or error.")
+
+        ACTIVE_BATCH_USERS.discard(uid)
+
+        if uid in USER_BATCH_QUEUE and USER_BATCH_QUEUE[uid]:
+            next = USER_BATCH_QUEUE[uid].pop(0)
+            await handle_queued_batch(next)
+
+    except Exception as e:
+        await data["m"].reply_text(f"❌ Queued batch failed: {str(e)[:50]}")
+        ACTIVE_BATCH_USERS.discard(uid)
+
 
 
 
