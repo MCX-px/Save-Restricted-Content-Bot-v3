@@ -56,34 +56,33 @@ async def update_batch_progress(user_id: int, current: int, success: int):
         ACTIVE_USERS[str(user_id)]["success"] = success
         await save_active_users_to_file()
 
-async def request_batch_cancel(user_id: int):
-    if str(user_id) in ACTIVE_USERS:
-        ACTIVE_USERS[str(user_id)]["cancel_requested"] = True
-        await save_active_users_to_file()
-        return True
-    return False
+async def process_msg(u, c, d, m, uid):
+    if should_cancel(uid):
+        await c.send_message(d, "❌ Batch cancelled instantly.")
+        await remove_active_batch(uid)
+        return 'Cancelled.'
 
-def should_cancel(user_id: int) -> bool:
-    user_str = str(user_id)
-    return user_str in ACTIVE_USERS and ACTIVE_USERS[user_str].get("cancel_requested", False)
-
-async def remove_active_batch(user_id: int):
-    if str(user_id) in ACTIVE_USERS:
-        del ACTIVE_USERS[str(user_id)]
-        await save_active_users_to_file()
-
-def get_batch_info(user_id: int) -> Optional[Dict[str, Any]]:
-    return ACTIVE_USERS.get(str(user_id))
-
-ACTIVE_USERS = load_active_users()
-
-async def upd_dlg(c):
     try:
-        async for _ in c.get_dialogs(limit=100): pass
-        return True
+        f = await u.download_media(m)
+        if should_cancel(uid):
+            await c.send_message(d, "❌ Batch cancelled instantly.")
+            await remove_active_batch(uid)
+            return 'Cancelled.'
+
+        if m.video:
+            await c.send_video(d, f, caption=m.caption or "")
+        elif m.document:
+            await c.send_document(d, f, caption=m.caption or "")
+        elif m.audio:
+            await c.send_audio(d, f, caption=m.caption or "")
+        elif m.photo:
+            await c.send_photo(d, f, caption=m.caption or "")
+        else:
+            await c.send_message(d, "⚠️ Unsupported media type.")
+        return 'Done.'
     except Exception as e:
-        print(f'Failed to update dialogs: {e}')
-        return False
+        await c.send_message(d, f"❌ Error: {e}")
+        return 'Error.'
 
 # fixed the old group of 2021-2022 extraction 🌝 (buy krne ka fayda nhi ab old group) ✅ 
 async def get_msg(c, u, i, d, lt):
@@ -556,5 +555,6 @@ async def text_handler(c, m):
         finally:
             await remove_active_batch(uid)
             Z.pop(uid, None)
+
 
 
