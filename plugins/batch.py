@@ -529,10 +529,16 @@ elif s == 'start_single':
 
     if not should_cancel(uid):
         await m.reply_text("✅ Batch completed successfully.")
-    else:
-        await m.reply_text("⚠️ Batch ended with cancellation or error.")
+else:
+    await m.reply_text("⚠️ Batch ended with cancellation or error.")
 
-    Z.pop(uid, None)
+ACTIVE_BATCH_USERS.discard(uid)
+
+if uid in USER_BATCH_QUEUE and USER_BATCH_QUEUE[uid]:
+    next_job = USER_BATCH_QUEUE[uid].pop(0)
+    await handle_queued_batch(next_job)
+
+Z.pop(uid, None)
         
         count = int(m.text)
         maxlimit = PREMIUM_LIMIT if await is_premium_user(uid) else FREEMIUM_LIMIT
@@ -596,8 +602,15 @@ elif s == 'start_single':
                 await m.reply_text(f'Batch Completed ✅ Success: {success}/{n}')
         
         finally:
-            await remove_active_batch(uid)
-            Z.pop(uid, None)
+    await remove_active_batch(uid)
+
+    ACTIVE_BATCH_USERS.discard(uid)
+
+    if uid in USER_BATCH_QUEUE and USER_BATCH_QUEUE[uid]:
+        next_job = USER_BATCH_QUEUE[uid].pop(0)
+        await handle_queued_batch(next_job)
+
+    Z.pop(uid, None)
 
 
 
