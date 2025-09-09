@@ -440,22 +440,41 @@ async def text_handler(c, m):
         return
 
     if s == 'start':
-        L = m.text
-        i, d, lt = E(L)
-        if not i or not d:
-            await m.reply_text('Invalid link format.')
-            Z.pop(uid, None)
-            return
-        Z[uid].update({'step': 'count', 'cid': i, 'sid': d, 'lt': lt})
-        await m.reply_text('How many messages?')
+    L = m.text
+    i, d, lt = E(L)
+    if not i or not d:
+        await m.reply_text('Invalid link format.')
+        Z.pop(uid, None)
+        return
 
-    elif s == 'start_single':
-        L = m.text
-        i, d, lt = E(L)
-        if not i or not d:
-            await m.reply_text('Invalid link format.')
-            Z.pop(uid, None)
-            return
+    # 🔒 Check if batch already running
+    if uid in ACTIVE_BATCH_USERS:
+        if uid not in USER_BATCH_QUEUE:
+            USER_BATCH_QUEUE[uid] = []
+        USER_BATCH_QUEUE[uid].append({
+            "ubot": ubot,
+            "uc": uc,
+            "i": i,
+            "d": d,
+            "lt": lt,
+            "pt": pt,
+            "m": m,
+            "s": 'count'
+        })
+        await pt.edit(f"📥 Batch queued. You are position #{len(USER_BATCH_QUEUE[uid])} in queue.")
+        return
+
+    Z[uid].update({'step': 'count', 'cid': i, 'sid': d, 'lt': lt})
+    ACTIVE_BATCH_USERS.add(uid)
+    await m.reply_text('How many messages?')
+
+elif s == 'start_single':
+    L = m.text
+    i, d, lt = E(L)
+    if not i or not d:
+        await m.reply_text('Invalid link format.')
+        Z.pop(uid, None)
+        return
 
         Z[uid].update({'step': 'process_single', 'cid': i, 'sid': d, 'lt': lt})
         i, s, lt = Z[uid]['cid'], Z[uid]['sid'], Z[uid]['lt']
@@ -579,6 +598,7 @@ async def text_handler(c, m):
         finally:
             await remove_active_batch(uid)
             Z.pop(uid, None)
+
 
 
 
