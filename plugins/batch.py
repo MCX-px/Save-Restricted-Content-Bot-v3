@@ -16,6 +16,10 @@ from utils.custom_filters import login_in_progress
 from utils.encrypt import dcs
 from typing import Dict, Any, Optional
 
+# 🔒 Lock-safe batch control
+USER_BATCH_QUEUE = {}  # uid: [batch_data1, batch_data2, ...]
+ACTIVE_BATCH_USERS = set()  # uid currently running
+
 
 Y = None if not STRING else __import__('shared_client').userbot
 Z, P, UB, UC, emp = {}, {}, {}, {}, {}
@@ -575,6 +579,7 @@ async def text_handler(c, m):
         finally:
             await remove_active_batch(uid)
             Z.pop(uid, None)
+
 
 
 
